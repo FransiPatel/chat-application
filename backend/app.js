@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const { initDB } = require("./models");
+const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const messageRoutes = require("./routes/message");
 const setupSocket = require("./socket/socket");
@@ -14,8 +15,9 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cors());
 // Routes
-app.use("/api/users", userRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/users", userRoutes);
 
 // Initialize Database
 initDB();

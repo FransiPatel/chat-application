@@ -1,16 +1,18 @@
 const { Message, User } = require("../models");
 const { MESSAGE_STATUS } = require("../config/constants");
+const { Op } = require('sequelize');
 
 // Send a message
 const sendMessage = async (req, res) => {
   try {
-    const { sender_id, receiver_id, message } = req.body;
+    const sender_id = req.user.id; 
+    const { receiver_id } = req.params;
+    const { message } = req.body;
 
     if (!sender_id || !receiver_id || !message) {
       return res.status(400).json({ error: "All fields are required." });
     }
 
-    // Create message in DB
     const newMessage = await Message.create({
       sender_id,
       receiver_id,
@@ -18,11 +20,10 @@ const sendMessage = async (req, res) => {
       status: MESSAGE_STATUS.PENDING,
     });
 
-    // Emit message to receiver via Socket.io
+    // Emit message via Socket.io
     const io = req.app.get("socketio");
     io.to(receiver_id).emit("receive_message", newMessage);
 
-    // Respond to sender
     res.status(201).json({ message: "Message sent successfully", data: newMessage });
   } catch (error) {
     console.error("Error sending message:", error);
@@ -33,18 +34,18 @@ const sendMessage = async (req, res) => {
 // Get chat history between two users
 const getChatHistory = async (req, res) => {
   try {
-    const { user1, user2 } = req.params;
+    const sender_id = req.user.id;
+    const { receiver_id } = req.params;
 
-    if (!user1 || !user2) {
-      return res.status(400).json({ error: "User IDs are required" });
+    if (!sender_id || !receiver_id) {
+      return res.status(400).json({ error: "Sender and Receiver IDs are required" });
     }
 
-    // Fetch messages between user1 and user2
     const messages = await Message.findAll({
       where: {
         [Op.or]: [
-          { sender_id: user1, receiver_id: user2 },
-          { sender_id: user2, receiver_id: user1 },
+          { sender_id, receiver_id },
+          { sender_id: receiver_id, receiver_id: sender_id },
         ],
       },
       order: [["createdAt", "ASC"]],
@@ -56,6 +57,7 @@ const getChatHistory = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 // Update message status to 'seen'
 const markMessageAsSeen = async (req, res) => {
