@@ -10,13 +10,13 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const { data } = await api.post("/auth/login", { email, password });
+      const { data } = await api.post("/api/users/login", { email, password }); // Corrected route
       localStorage.setItem("token", data.token);
       navigate("/chat");
     } catch (error) {
       alert("Login failed!");
     }
-  };
+  };  
 
   return (
     <div>

@@ -1,20 +1,23 @@
-import { useEffect } from "react";
-import socket from "./socket";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Login from "./components/Auth/Login";
+import Register from "./components/Auth/Register";
+import Chat from "./components/Chat/ChatBox";
+import HomePage from "./pages/HomePage"; // Import the HomePage
 
 function App() {
-  useEffect(() => {
-    const userId = localStorage.getItem("userId"); // Get userId from local storage
+  return (
+    <Router>
+      <Routes>
+        {/* Default Route */}
+        <Route path="/" element={<HomePage />} />
 
-    if (userId) {
-      socket.emit("user_online", userId);
-    }
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
-  return <h1>Chat App</h1>;
+        {/* Other Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/chat" element={<Chat />} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;

@@ -7,17 +7,19 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-
+  
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/auth/register", { name, email, password });
+      console.log("Register Password:", password);  // Log the password to ensure it's a string
+      await api.post("/api/users/register", { name, email, password: String(password) });
       alert("Registration Successful!");
       navigate("/login");
     } catch (error) {
-      alert("Registration failed!");
+      alert(error.response?.data?.message || "Registration failed!");
     }
   };
+  
 
   return (
     <div>
