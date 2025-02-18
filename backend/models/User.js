@@ -1,6 +1,6 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
-const { USER_STATUS, TABLE_NAMES } = require("../config/constants");
+const { TABLE_NAMES } = require("../config/constants");
 
 const User = sequelize.define(
   "User",
@@ -25,15 +25,11 @@ const User = sequelize.define(
     password: {
       type: DataTypes.STRING,
       allowNull: false,
-    },
-    status: {
-      type: DataTypes.ENUM(...Object.values(USER_STATUS)),
-      defaultValue: USER_STATUS.OFFLINE,
-    },
+    }
   },
   {
     timestamps: true,
-    tableName: TABLE_NAMES.USER,
+    tableName: TABLE_NAMES.USER
   }
 );
 

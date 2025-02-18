@@ -1,9 +1,22 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
-const UserList = ({ users, currentUser, handleUserSelect, loading }) => {
+const UserList = ({ users, currentUser, selectedUser, handleUserSelect, loading }) => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
+
   return (
     <div className="user-list">
-      <h3>Users</h3>
+      {currentUser && (
+        <div className="current-user">
+          <h3>Welcome, {currentUser.name}</h3>
+        </div>
+      )}
+      <h4>Users</h4>
       {loading ? (
         <p>Loading users...</p>
       ) : (
@@ -12,15 +25,15 @@ const UserList = ({ users, currentUser, handleUserSelect, loading }) => {
             <div
               key={user.id}
               onClick={() => handleUserSelect(user)}
-              className={`user-item ${currentUser?.id === user.id ? "selected" : ""}`}
+              className={`user-item ${selectedUser?.id === user.id ? "selected" : ""}`}
             >
-              {user.name || "Unknown"}
+              <span className="user-name">{user.name}</span>
             </div>
           ))}
         </div>
       )}
       <div className="logout-button-container">
-        <button onClick={() => window.location.href = "/login"} className="logout-button">
+        <button onClick={handleLogout} className="logout-button">
           Logout
         </button>
       </div>

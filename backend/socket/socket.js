@@ -1,100 +1,109 @@
-const { Server } = require("socket.io");
+const socketIo = require('socket.io');
+const jwt = require('jsonwebtoken');
 const { User, Message } = require("../models");
 const { MESSAGE_STATUS, USER_STATUS } = require("../config/constants");
 
-const activeUsers = new Map();
-
-const setupSocket = (server) => {
-  const io = new Server(server, {
+const setupSocket = (server) => {  
+  const io = socketIo(server, {
     cors: {
-      origin: "*", // Allow all origins
+      origin: "http://localhost:3001",
       methods: ["GET", "POST"],
-    },
+      allowedHeaders: ["my-custom-header"],
+      credentials: true
+    }
   });
 
-  io.on("connection", (socket) => {
-    console.log("New user connected:", socket.id);
+  // Socket authentication middleware
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    
+    if (!token) {
+      return next(new Error("Authentication error"));
+    }
 
-    socket.on("user_online", async (userId) => {
-      try {
-        if (userId) {
-          activeUsers.set(userId, socket.id);
-          await User.update({ status: USER_STATUS.ONLINE }, { where: { id: userId } });
-          io.emit("user_status", { userId, status: USER_STATUS.ONLINE });
-          console.log(`User ${userId} is online`);
-        }
-      } catch (error) {
-        console.error("Error while setting user status to online:", error);
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.userId = decoded.id;
+      next();
+    } catch (err) {
+      next(new Error("Authentication error"));
+    }
+  });
+
+  const connectedUsers = new Map();
+
+  io.on('connection', (socket) => {
+    connectedUsers.set(socket.userId, socket.id);
+
+    socket.on('send_message', (messageData) => {
+      const receiverSocketId = connectedUsers.get(messageData.receiver_id);
+      
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('receive_message', messageData);
+        socket.emit('message_delivered', messageData.id);
       }
     });
 
-    // Handle sending messages
-    socket.on("send_message", async ({ senderId, receiverId, message, senderName }) => {
-      try {
-        if (!senderId || !receiverId || !message) return;
-
-        // Store message in database
-        const newMessage = await Message.create({
-          sender_id: senderId,
-          receiver_id: receiverId,
-          message,
-          sender_name: senderName,
-          status: MESSAGE_STATUS.PENDING,
+    socket.on('typing_status', (data) => {
+      const receiverSocketId = connectedUsers.get(data.receiverId);
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('typing_status', {
+          senderId: data.senderId,
+          isTyping: data.isTyping
         });
-
-        // Get receiver's socket ID
-        const receiverSocketId = activeUsers.get(receiverId);
-    
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit("receive_message", {
-            ...newMessage.toJSON(),
-            sender_name: senderName
-          });
-
-          // Update message status to 'delivered'
-          await newMessage.update({ status: MESSAGE_STATUS.DELIVERED });
-
-          // Notify sender about delivery status
-          io.to(socket.id).emit("message_delivered", { messageId: newMessage.id });
-        }
-    
-        console.log(`Message sent from ${senderId} to ${receiverId}`);
-      } catch (error) {
-        console.error("Error sending message:", error);
       }
     });
 
-    // Handle message seen status
-    socket.on("mark_as_seen", async ({ messageId, senderId }) => {
-      try {
-        const message = await Message.findByPk(messageId);
-        if (message) {
-          await message.update({ status: MESSAGE_STATUS.SEEN });
+    socket.on('disconnect', () => {
+      connectedUsers.delete(socket.userId);
+    });
 
-          // Notify sender that message is seen
-          const senderSocketId = [...activeUsers.entries()].find(([_, id]) => id === senderId)?.[0];
-          if (senderSocketId) {
-            io.to(senderSocketId).emit("message_seen", { messageId });
+    // When a message is received
+    socket.on("message", async (data) => {
+      try {
+        socket.emit("message_delivered", data.messageId);
+
+        if (data.recipientId) {
+          const recipientSocket = findSocketByUserId(data.recipientId);
+          if (recipientSocket) {
+            recipientSocket.emit("new_message", data);
+            socket.emit("message_delivered", data.messageId);
           }
-
-          console.log(`Message ${messageId} seen by recipient`);
         }
       } catch (error) {
-        console.error("Error updating message status:", error);
+        // Silent error handling
       }
     });
 
-    socket.on("disconnect", async () => {
+    // When a message is seen
+    socket.on("message_seen", (data) => {
       try {
-        const userId = [...activeUsers.entries()].find(([_, id]) => id === socket.id)?.[0];
-        if (userId) {
-          await User.update({ status: USER_STATUS.OFFLINE }, { where: { id: userId } });
-          io.emit("user_status", { userId, status: USER_STATUS.OFFLINE });
-          activeUsers.delete(socket.id);
-          console.log(`User ${userId} disconnected`);
+        if (data.senderId) {
+          const senderSocket = findSocketByUserId(data.senderId);
+          if (senderSocket) {
+            senderSocket.emit("message_seen", data.messageId);
+          }
         }
       } catch (error) {
-        console.error("Error while setting user status to offline:", error);
+        // Silent error handling
+      }
+    });
+
+    // Handle message received confirmation
+    socket.on('message_received', async ({ messageId, senderId, receiverId }) => {
+      try {
+        await Message.update(
+          { status: 'delivered' },
+          { where: { id: messageId } }
+        );
+
+        const senderSocketId = connectedUsers.get(senderId);
+        
+        if (senderSocketId) {
+          io.to(senderSocketId).emit('message_received', { messageId });
+        }
+      } catch (error) {
+        // Silent error handling
       }
     });
   });

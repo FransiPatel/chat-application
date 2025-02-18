@@ -1,29 +1,27 @@
-const redisClient = require("../config/redis");
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
+const { User } = require('../models');
 
-const authenticateUser = async (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1]; // Extract token from Authorization header
-
-  if (!token) {
-    return res.status(401).json({ error: "No token provided" });
-  }
-
+const auth = async (req, res, next) => {
   try {
-    // Decode the token to get the user id
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Check if the token exists in Redis
-    const storedToken = await redisClient.get(`user:${decoded.id}:token`);
-
-    if (!storedToken || storedToken !== token) {
-      return res.status(401).json({ error: "Invalid or expired token" });
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ message: 'Authentication required' });
     }
 
-    req.user = decoded; // Attach user data to the request object
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findByPk(decoded.id);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    req.token = token;
+    req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ error: "Invalid token" });
+    res.status(401).json({ message: 'Please authenticate' });
   }
 };
 
-module.exports = authenticateUser;
+module.exports = auth;

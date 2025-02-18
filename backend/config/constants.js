@@ -8,27 +8,13 @@ module.exports = {
     },
   
     MESSAGE_STATUS: {
-      PENDING: "pending",
+      SENT: "sent",
       DELIVERED: "delivered",
     },
   
-    USER_STATUS: {
-      ONLINE: "online",
-      OFFLINE: "offline",
-    },
-  
     TABLE_NAMES: {
-      USER: "users",
-      MESSAGE: "messages",
+      USER: "User",
+      MESSAGE: "Message",
     },
-    MESSAGE_STATUS: {
-        PENDING: "pending",
-        DELIVERED: "delivered",
-        SEEN: "seen",
-      },
-      USER_STATUS: {
-        ONLINE: "online",
-        OFFLINE: "offline",
-      },
   };
   

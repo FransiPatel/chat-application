@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from "react";
+import Message from "./Message";
 
-const ChatWindow = ({ messages, senderId, typing }) => {
+const ChatWindow = ({ messages, currentUser, typing, selectedUser }) => {
   const chatWindowRef = useRef(null);
 
-  // Scroll to the latest message
   useEffect(() => {
     if (chatWindowRef.current) {
       chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
@@ -12,17 +12,18 @@ const ChatWindow = ({ messages, senderId, typing }) => {
 
   return (
     <div className="chat-window" ref={chatWindowRef}>
-      {messages.map((msg) => (
-        <div key={msg.id} className={`message ${msg.sender_id === senderId ? "sent" : "received"}`}>
-          <p>
-            <strong>{msg.sender_id === senderId ? "Me" : msg.sender_name}:</strong> {msg.message}
-          </p>
-          <span className="status">
-            {msg.status === "PENDING" ? "🔄" : msg.status === "DELIVERED" ? "✔✔" : null}
-          </span>
-        </div>
+      {messages.map((message) => (
+        <Message
+          key={message.id}
+          message={message}
+          currentUser={currentUser}
+        />
       ))}
-      {typing && <p className="typing-indicator">Typing...</p>}
+      {typing && selectedUser && (
+        <div className="typing-indicator">
+          {selectedUser.name} is typing...
+        </div>
+      )}
     </div>
   );
 };

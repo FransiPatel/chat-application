@@ -15,7 +15,7 @@ const Message = sequelize.define(
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: User,
+        model: TABLE_NAMES.USER,  // Use the constant here
         key: "id",
       },
       onDelete: "CASCADE",
@@ -24,7 +24,7 @@ const Message = sequelize.define(
       type: DataTypes.UUID,
       allowNull: false,
       references: {
-        model: User,
+        model: TABLE_NAMES.USER,  // Use the constant here
         key: "id",
       },
       onDelete: "CASCADE",
@@ -40,7 +40,7 @@ const Message = sequelize.define(
   },
   {
     timestamps: true,
-    tableName: TABLE_NAMES.MESSAGE,
+    tableName: TABLE_NAMES.MESSAGE  // Use the constant here
   }
 );
 

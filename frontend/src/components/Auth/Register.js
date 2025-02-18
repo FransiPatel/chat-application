@@ -1,6 +1,7 @@
 import { useState } from "react";
 import api from "../../services/api";
 import { useNavigate } from "react-router-dom";
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './Auth.css';
 
 const Register = () => {
@@ -8,11 +9,10 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  
+
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      console.log("Register Password:", password);  // Log the password to ensure it's a string
       await api.post("/api/auth/register", { name, email, password: String(password) });
       alert("Registration Successful!");
       navigate("/login");
@@ -20,15 +20,15 @@ const Register = () => {
       alert(error.response?.data?.message || "Registration failed!");
     }
   };
-  
 
   return (
-    <div className="auth-container">
-      <div className="auth-form">
-        <h2>Register</h2>
+    <div className="d-flex justify-content-center align-items-center vh-100 bg-gradient" style={{ background: 'linear-gradient(to right, #89CFF0, #B0E0E6)' }}>
+      <div className="custom-container">
+        <h2 className="text-dark mb-4">Register</h2>
         <form onSubmit={handleRegister}>
           <input
             type="text"
+            className="form-control mb-3"
             placeholder="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -36,6 +36,7 @@ const Register = () => {
           />
           <input
             type="email"
+            className="form-control mb-3"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -43,12 +44,15 @@ const Register = () => {
           />
           <input
             type="password"
+            className="form-control mb-3"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <button type="submit" className="btn">Register</button>
+          <button type="submit" className="btn btn-info btn-lg w-100">
+            Register
+          </button>
         </form>
       </div>
     </div>

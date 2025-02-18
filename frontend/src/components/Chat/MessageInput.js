@@ -1,21 +1,29 @@
 import React from "react";
 
 const MessageInput = ({ message, setMessage, sendMessage, handleTypingChange }) => {
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage();
+  };
+
   return (
-    <div>
-      <input
-        type="text"
-        value={message}
-        onChange={(e) => {
-          setMessage(e.target.value);
-          handleTypingChange();
-        }}
-        placeholder="Type a message"
-        className="chat-input"
-      />
-      <button onClick={sendMessage} className="send-button">
-        Send
-      </button>
+    <div className="message-input-container">
+      <form onSubmit={handleSubmit} className="message-input-wrapper">
+        <input
+          type="text"
+          className="message-input"
+          placeholder="Type a message..."
+          value={message}
+          onChange={handleTypingChange}
+        />
+        <button 
+          type="submit" 
+          className="send-button"
+          disabled={!message.trim()}
+        >
+          Send
+        </button>
+      </form>
     </div>
   );
 };
