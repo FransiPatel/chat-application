@@ -91,4 +91,27 @@
     width: 100%;
     margin-bottom:20px;
   }
-  
+  /* Chat messages */
+.message {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 60%;
+  word-wrap: break-word;
+  margin-bottom: 5px;
+}
+
+/* Sent messages (align right) */
+.sent {
+  background-color: #DCF8C6;
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+/* Received messages (align left) */
+.received {
+  background-color: #EAEAEA;
+  align-self: flex-start;
+  margin-right: auto;
+}

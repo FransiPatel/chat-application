@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { User } = require("../models");
 const { USER_STATUS } = require("../config/constants");
+const redisClient = require("../config/redis"); // Assuming you've set up your Redis client
 require("dotenv").config();
 
 // Register a new user
@@ -59,8 +60,8 @@ const login = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    // Update user status to online
-    await user.update({ status: USER_STATUS.ONLINE });
+    // Store the token in Redis with an expiration time
+    await redisClient.setEx(`user:${user.id}:token`, 86400, token); // expires in 1 day (86400 seconds)
 
     res.status(200).json({ message: "Login successful", token, user });
   } catch (error) {
@@ -74,8 +75,8 @@ const logout = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Update user status to offline
-    await User.update({ status: USER_STATUS.OFFLINE }, { where: { id: userId } });
+    // Remove the token from Redis
+    await redisClient.del(`user:${userId}:token`);
 
     res.status(200).json({ message: "Logout successful" });
   } catch (error) {
