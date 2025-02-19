@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
-import socket from "../../socket";
+import socket from "../../services/socket";
 import UserList from "./UserList";
 import ChatWindow from "./ChatWindow";
 import MessageInput from "./MessageInput";
@@ -70,10 +70,9 @@ const ChatBox = () => {
           // Check if the message has been delivered
           return {
             ...message,
-            status: message.status || 'sent' // Default to 'sent' if status is not set
+            status: message.status || 'sent'
           };
         }
-        // If we're receiving the message, mark it as delivered
         else {
           // Update message status to delivered in the backend
           socket.emit('message_received', {
@@ -198,6 +197,12 @@ const ChatBox = () => {
     setSelectedUser(user);
     fetchChatHistory(user.id);
     navigate(`/chat/${user.id}`);
+    
+    // Mark messages as read when selecting the user
+    socket.emit("mark_messages_read", {
+      senderId: user.id,
+      receiverId: currentUser?.id
+    });
   };
 
   const sendMessage = async () => {
