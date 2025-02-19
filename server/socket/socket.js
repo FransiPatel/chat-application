@@ -1,13 +1,12 @@
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
-const { User, Message } = require("../models");
+const { Message } = require("../models");
 const { 
   MESSAGE_STATUS, 
-  USER_STATUS, 
   SOCKET_EVENTS, 
-  ERROR_MESSAGES,
   CORS_CONFIG 
 } = require("../config/constants");
+const { Op } = require('sequelize');
 
 const setupSocket = (server) => {  
   const io = socketIo(server, {
@@ -105,6 +104,34 @@ const setupSocket = (server) => {
         }
       } catch (error) {
         // Silent error handling
+      }
+    });
+
+    // Handle marking messages as read
+    socket.on("mark_messages_read", async (data) => {
+      try {
+        await Message.update(
+          { status: MESSAGE_STATUS.SEEN },
+          {
+            where: {
+              sender_id: data.senderId,
+              receiver_id: data.receiverId,
+              status: {
+                [Op.ne]: MESSAGE_STATUS.SEEN
+              }
+            }
+          }
+        );
+
+        // Notify sender that messages were read
+        const senderSocketId = connectedUsers.get(data.senderId);
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("messages_read", {
+            readBy: data.receiverId
+          });
+        }
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
       }
     });
   });
