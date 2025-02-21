@@ -49,13 +49,6 @@ socket.on("message_delivered", (messageId) => {
   window.dispatchEvent(event);
 });
 
-socket.on("message_seen", (messageId) => {
-  console.log("Message seen:", messageId);
-  // You can emit an event to update the UI
-  const event = new CustomEvent("messageSeen", { detail: messageId });
-  window.dispatchEvent(event);
-});
-
 // Debug socket state
 setInterval(() => {
   console.log("Socket state:", {

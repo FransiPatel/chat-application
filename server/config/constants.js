@@ -20,7 +20,6 @@ module.exports = {
     PENDING: "pending",
     SENT: "sent",
     DELIVERED: "delivered",
-    SEEN: "seen",
     FAILED: "failed"
   },
 
@@ -46,7 +45,6 @@ module.exports = {
     SEND_MESSAGE: "send_message",
     RECEIVE_MESSAGE: "receive_message",
     MESSAGE_DELIVERED: "message_delivered",
-    MESSAGE_SEEN: "message_seen",
     TYPING_STATUS: "typing_status",
     USER_ONLINE: "user_online",
     USER_OFFLINE: "user_offline"

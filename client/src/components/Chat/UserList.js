@@ -60,10 +60,16 @@ const UserList = ({ users, currentUser, selectedUser, handleUserSelect, loading 
     }
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await api.post("/api/auth/logout"); // Call logout API
+      localStorage.clear();
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
+  
 
   // Use search results if there's a query, otherwise use all users
   const displayUsers = searchQuery ? searchResults : users;

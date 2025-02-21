@@ -1,17 +1,16 @@
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { Message } = require("../models");
-const { 
-  MESSAGE_STATUS, 
-  SOCKET_EVENTS, 
-  CORS_CONFIG 
-} = require("../config/constants");
-const { Op } = require('sequelize');
+const { MESSAGE_STATUS, SOCKET_EVENTS, CORS_CONFIG } = require("../config/constants");
+const connectedUsers = new Map();
+const { setIoInstance } = require('../controllers/messageController'); 
+
 
 const setupSocket = (server) => {  
   const io = socketIo(server, {
     cors: CORS_CONFIG
   });
+  setIoInstance(io);
 
   // Socket authentication middleware
   io.use((socket, next) => {
@@ -30,16 +29,55 @@ const setupSocket = (server) => {
     }
   });
 
-  const connectedUsers = new Map();
 
-  io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
+
+  io.on(SOCKET_EVENTS.CONNECTION, async (socket) => {
     connectedUsers.set(socket.userId, socket.id);
 
-    socket.on(SOCKET_EVENTS.SEND_MESSAGE, (messageData) => {
+    // Update message status for newly connected user
+    try {
+      await Message.update(
+        { status: MESSAGE_STATUS.DELIVERED },
+        {
+          where: {
+            receiver_id: socket.userId,
+            status: MESSAGE_STATUS.SENT
+          }
+        }
+      );
+
+      // Notify senders that their messages have been delivered
+      const deliveredMessages = await Message.findAll({
+        where: {
+          receiver_id: socket.userId,
+          status: MESSAGE_STATUS.DELIVERED
+        },
+        attributes: ["id", "sender_id"]
+      });
+
+      deliveredMessages.forEach(({ id, sender_id }) => {
+        const senderSocketId = connectedUsers.get(sender_id);
+        if (senderSocketId) {
+          io.to(senderSocketId).emit(SOCKET_EVENTS.MESSAGE_DELIVERED, { messageId: id });
+        }
+      });
+    } catch (error) {
+      console.error("Error updating message status on user connection:", error);
+    }
+
+    socket.on(SOCKET_EVENTS.SEND_MESSAGE, async (messageData) => {
       const receiverSocketId = connectedUsers.get(messageData.receiver_id);
-      
+
       if (receiverSocketId) {
         io.to(receiverSocketId).emit(SOCKET_EVENTS.RECEIVE_MESSAGE, messageData);
+
+        // Update message status to DELIVERED immediately
+        await Message.update(
+          { status: MESSAGE_STATUS.DELIVERED },
+          { where: { id: messageData.id } }
+        );
+
+        // Notify sender that the message was delivered
         socket.emit(SOCKET_EVENTS.MESSAGE_DELIVERED, messageData.id);
       }
     });
@@ -54,86 +92,35 @@ const setupSocket = (server) => {
       }
     });
 
+    // Handle user logout (to properly remove from connected users)
+    socket.on(SOCKET_EVENTS.LOGOUT, () => {
+      connectedUsers.delete(socket.userId);
+      socket.disconnect();
+    });
+
     socket.on('disconnect', () => {
       connectedUsers.delete(socket.userId);
     });
 
-    // When a message is received
-    socket.on("message", async (data) => {
-      try {
-        socket.emit("message_delivered", data.messageId);
-
-        if (data.recipientId) {
-          const recipientSocket = findSocketByUserId(data.recipientId);
-          if (recipientSocket) {
-            recipientSocket.emit("new_message", data);
-            socket.emit("message_delivered", data.messageId);
-          }
-        }
-      } catch (error) {
-        // Silent error handling
-      }
-    });
-
-    // When a message is seen
-    socket.on("message_seen", (data) => {
-      try {
-        if (data.senderId) {
-          const senderSocket = findSocketByUserId(data.senderId);
-          if (senderSocket) {
-            senderSocket.emit("message_seen", data.messageId);
-          }
-        }
-      } catch (error) {
-        // Silent error handling
-      }
-    });
-
     // Handle message received confirmation
-    socket.on('message_received', async ({ messageId, senderId, receiverId }) => {
+    socket.on("message_received", async ({ messageId, senderId, receiverId }) => {
       try {
+        // Update message status to 'delivered'
         await Message.update(
-          { status: 'delivered' },
+          { status: MESSAGE_STATUS.DELIVERED },
           { where: { id: messageId } }
         );
-
+    
+        // Notify sender that the message was delivered
         const senderSocketId = connectedUsers.get(senderId);
-        
         if (senderSocketId) {
-          io.to(senderSocketId).emit('message_received', { messageId });
+          io.to(senderSocketId).emit(SOCKET_EVENTS.MESSAGE_DELIVERED, { messageId });
         }
       } catch (error) {
-        // Silent error handling
+        console.error("Error updating message status:", error);
       }
     });
-
-    // Handle marking messages as read
-    socket.on("mark_messages_read", async (data) => {
-      try {
-        await Message.update(
-          { status: MESSAGE_STATUS.SEEN },
-          {
-            where: {
-              sender_id: data.senderId,
-              receiver_id: data.receiverId,
-              status: {
-                [Op.ne]: MESSAGE_STATUS.SEEN
-              }
-            }
-          }
-        );
-
-        // Notify sender that messages were read
-        const senderSocketId = connectedUsers.get(data.senderId);
-        if (senderSocketId) {
-          io.to(senderSocketId).emit("messages_read", {
-            readBy: data.receiverId
-          });
-        }
-      } catch (error) {
-        console.error("Error marking messages as read:", error);
-      }
-    });
+    
   });
 
   return io;

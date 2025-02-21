@@ -11,8 +11,6 @@ module.exports = {
   // Message Controllers
   sendMessage: messageController.sendMessage,
   getChatHistory: messageController.getChatHistory,
-  markMessageAsSeen: messageController.markMessageAsSeen,
-  updateMessageStatus: messageController.updateMessageStatus,
 
   // User Controllers
   getUsers: userController.getUsers,

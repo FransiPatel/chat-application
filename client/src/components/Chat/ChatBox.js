@@ -1,3 +1,4 @@
+// client/src/components/Chat/ChatBox.js
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
@@ -62,37 +63,11 @@ const ChatBox = () => {
   const fetchChatHistory = useCallback(async (receiverId) => {
     try {
       const { data } = await api.get(`/api/messages/user/${receiverId}`);
-      
-      // Process messages to set correct status
-      const processedMessages = data.messages.map(message => {
-        // If the message is from the current user
-        if (message.sender_id === currentUser?.id) {
-          // Check if the message has been delivered
-          return {
-            ...message,
-            status: message.status || 'sent'
-          };
-        }
-        else {
-          // Update message status to delivered in the backend
-          socket.emit('message_received', {
-            messageId: message.id,
-            senderId: message.sender_id,
-            receiverId: currentUser?.id
-          });
-          
-          return {
-            ...message,
-            status: 'delivered'
-          };
-        }
-      });
-
-      setMessages(processedMessages || []);
+      setMessages(data.messages || []);
     } catch (error) {
       console.error("Error fetching chat history:", error);
     }
-  }, [currentUser]);
+  }, []);
 
   // Initialize data and socket connection
   useEffect(() => {
@@ -127,29 +102,22 @@ const ChatBox = () => {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Connect socket if not connected
-    if (!socket.connected) {
-      socket.connect();
-    }
-
     // Handle incoming messages
     const handleReceiveMessage = (newMessage) => {
       console.log("New message received:", newMessage);
+      
       setMessages(prev => {
-        // Avoid duplicate messages
         const messageExists = prev.some(msg => msg.id === newMessage.id);
         if (messageExists) return prev;
-
-        // Add message if it's relevant to current chat
-        const isRelevantMessage = 
-          selectedUser && 
-          (newMessage.sender_id === selectedUser.id || 
-           newMessage.receiver_id === selectedUser.id);
-
-        if (isRelevantMessage) {
-          return [...prev, newMessage];
-        }
-        return prev;
+    
+        return [...prev, newMessage];
+      });
+    
+      // Emit message_received event to update status in the database
+      socket.emit("message_received", { 
+        messageId: newMessage.id, 
+        senderId: newMessage.sender_id, 
+        receiverId: currentUser.id 
       });
     };
 
@@ -161,35 +129,25 @@ const ChatBox = () => {
     };
 
     // Handle message delivery status
-    const handleMessageDelivered = (messageId) => {
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, status: 'delivered' }
-          : msg
-      ));
+    const handleMessageDelivered = ({ messageId }) => {
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg.id === messageId ? { ...msg, status: "delivered" } : msg
+        )
+      );
     };
 
-    // Add handler for message received confirmation
-    const handleMessageReceived = ({ messageId }) => {
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, status: 'delivered' }
-          : msg
-      ));
-    };
 
     // Socket event listeners
     socket.on("receive_message", handleReceiveMessage);
     socket.on("typing_status", handleTypingStatus);
     socket.on("message_delivered", handleMessageDelivered);
-    socket.on("message_received", handleMessageReceived);
 
     // Cleanup
     return () => {
       socket.off("receive_message", handleReceiveMessage);
       socket.off("typing_status", handleTypingStatus);
       socket.off("message_delivered", handleMessageDelivered);
-      socket.off("message_received", handleMessageReceived);
     };
   }, [currentUser, selectedUser]);
 
