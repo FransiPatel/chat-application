@@ -20,7 +20,7 @@ const registerRules = {
 // Login validation rules
 const loginRules = {
   email: 'required|email',
-  password: 'required|string'
+  password: 'required'
 };
 
 // Register a new user
@@ -100,6 +100,10 @@ const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: AUTH.TOKEN_EXPIRY }
     );
+
+    // Store token in Redis
+    const redisKey = REDIS_KEYS.USER_TOKEN.replace('{userId}', user.id);
+    await redisClient.set(redisKey, token, 'EX', AUTH.TOKEN_EXPIRY);
 
     // Send response
     res.status(200).json({
